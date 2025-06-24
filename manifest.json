@@ -191,10 +191,6 @@
     ]
   },
   
-  "storage": {
-    "managed_schema": "schema.json"
-  },
-  
   "incognito": "split",
   
   "offline_enabled": true,
