@@ -8,7 +8,7 @@
     <div id="downloads"></div>
     
     <script>
-        const sizes = [16, 24, 32, 48, 64, 96, 128, 256];
+        const sizes = [16, 24, 32, 48, 64, 96, 128];
         const downloadsDiv = document.getElementById('downloads');
         
         sizes.forEach(size => {
