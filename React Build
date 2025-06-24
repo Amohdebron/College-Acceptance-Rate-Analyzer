@@ -1,0 +1,748 @@
+// App.js - Main Application Component
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import './App.css';
+
+// Components
+import Navigation from './components/Navigation/Navigation';
+import Dashboard from './components/Dashboard/Dashboard';
+import Search from './components/Search/Search';
+import Compare from './components/Compare/Compare';
+import Analytics from './components/Analytics/Analytics';
+import Settings from './components/Settings/Settings';
+
+// Services
+import { storageService } from './services/storage';
+import { collegeAPI } from './services/api';
+
+function App() {
+  const [colleges, setColleges] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [comparisons, setComparisons] = useState([]);
+  const [settings, setSettings] = useState({
+    theme: 'light',
+    defaultView: 'dashboard',
+    notifications: true,
+    autoUpdate: true
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    initializeApp();
+  }, []);
+
+  const initializeApp = async () => {
+    try {
+      const data = await storageService.getAllData();
+      setColleges(data.colleges || []);
+      setFavorites(data.favorites || []);
+      setComparisons(data.comparisons || []);
+      setSettings({ ...settings, ...data.settings });
+    } catch (error) {
+      console.error('Failed to initialize app:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addCollege = async (college) => {
+    const updatedColleges = [...colleges, { ...college, id: Date.now() }];
+    setColleges(updatedColleges);
+    await storageService.saveColleges(updatedColleges);
+  };
+
+  const removeCollege = async (collegeId) => {
+    const updatedColleges = colleges.filter(c => c.id !== collegeId);
+    setColleges(updatedColleges);
+    await storageService.saveColleges(updatedColleges);
+  };
+
+  const toggleFavorite = async (collegeId) => {
+    const updatedFavorites = favorites.includes(collegeId)
+      ? favorites.filter(id => id !== collegeId)
+      : [...favorites, collegeId];
+    setFavorites(updatedFavorites);
+    await storageService.saveFavorites(updatedFavorites);
+  };
+
+  if (loading) {
+    return <div className="loading">Loading College Analyzer...</div>;
+  }
+
+  return (
+    <div className={`app ${settings.theme}`}>
+      <Router>
+        <Navigation />
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route 
+              path="/dashboard" 
+              element={
+                <Dashboard 
+                  colleges={colleges}
+                  favorites={favorites}
+                  onToggleFavorite={toggleFavorite}
+                />
+              } 
+            />
+            <Route 
+              path="/search" 
+              element={
+                <Search 
+                  onAddCollege={addCollege}
+                  existingColleges={colleges}
+                />
+              } 
+            />
+            <Route 
+              path="/compare" 
+              element={
+                <Compare 
+                  colleges={colleges}
+                  comparisons={comparisons}
+                  setComparisons={setComparisons}
+                />
+              } 
+            />
+            <Route 
+              path="/analytics" 
+              element={<Analytics colleges={colleges} />} 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <Settings 
+                  settings={settings}
+                  setSettings={setSettings}
+                  colleges={colleges}
+                />
+              } 
+            />
+          </Routes>
+        </main>
+      </Router>
+    </div>
+  );
+}
+
+export default App;
+
+// components/Navigation/Navigation.js
+import React from 'react';
+import { NavLink } from 'react-router-dom';
+import { Home, Search, BarChart3, TrendingUp, Settings } from 'lucide-react';
+import './Navigation.css';
+
+const Navigation = () => {
+  const navItems = [
+    { path: '/dashboard', icon: Home, label: 'Dashboard' },
+    { path: '/search', icon: Search, label: 'Search' },
+    { path: '/compare', icon: BarChart3, label: 'Compare' },
+    { path: '/analytics', icon: TrendingUp, label: 'Analytics' },
+    { path: '/settings', icon: Settings, label: 'Settings' }
+  ];
+
+  return (
+    <nav className="navigation">
+      <div className="nav-header">
+        <h1>College Analyzer</h1>
+      </div>
+      <div className="nav-items">
+        {navItems.map(({ path, icon: Icon, label }) => (
+          <NavLink
+            key={path}
+            to={path}
+            className={({ isActive }) => 
+              `nav-item ${isActive ? 'active' : ''}`
+            }
+          >
+            <Icon size={16} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+      </div>
+    </nav>
+  );
+};
+
+export default Navigation;
+
+// components/Dashboard/Dashboard.js
+import React, { useState, useMemo } from 'react';
+import CollegeCard from './CollegeCard';
+import QuickStats from './QuickStats';
+import { Search, Filter, Star } from 'lucide-react';
+import './Dashboard.css';
+
+const Dashboard = ({ colleges, favorites, onToggleFavorite }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+
+  const filteredColleges = useMemo(() => {
+    let filtered = colleges;
+
+    if (searchTerm) {
+      filtered = filtered.filter(college =>
+        college.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        college.location?.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        college.location?.state?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (filterType !== 'all') {
+      filtered = filtered.filter(college => college.type === filterType);
+    }
+
+    if (showFavoritesOnly) {
+      filtered = filtered.filter(college => favorites.includes(college.id));
+    }
+
+    return filtered;
+  }, [colleges, searchTerm, filterType, showFavoritesOnly, favorites]);
+
+  return (
+    <div className="dashboard">
+      <div className="dashboard-header">
+        <h2>Your College Dashboard</h2>
+        <QuickStats colleges={colleges} favorites={favorites} />
+      </div>
+
+      <div className="dashboard-controls">
+        <div className="search-box">
+          <Search size={16} />
+          <input
+            type="text"
+            placeholder="Search colleges..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div className="filters">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+          >
+            <option value="all">All Types</option>
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+          </select>
+
+          <button
+            className={`favorites-toggle ${showFavoritesOnly ? 'active' : ''}`}
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+          >
+            <Star size={16} />
+            Favorites Only
+          </button>
+        </div>
+      </div>
+
+      <div className="colleges-grid">
+        {filteredColleges.length === 0 ? (
+          <div className="no-colleges">
+            <p>No colleges found. Try adjusting your search or add some colleges!</p>
+          </div>
+        ) : (
+          filteredColleges.map(college => (
+            <CollegeCard
+              key={college.id}
+              college={college}
+              isFavorite={favorites.includes(college.id)}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
+
+// components/Dashboard/CollegeCard.js
+import React from 'react';
+import { Star, MapPin, Users, DollarSign, Award } from 'lucide-react';
+import './CollegeCard.css';
+
+const CollegeCard = ({ college, isFavorite, onToggleFavorite }) => {
+  const {
+    id,
+    name,
+    location,
+    type,
+    academics,
+    admissions,
+    financial,
+    student
+  } = college;
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  return (
+    <div className="college-card">
+      <div className="card-header">
+        <div className="college-info">
+          <h3>{name}</h3>
+          <div className="location">
+            <MapPin size={14} />
+            <span>{location?.city}, {location?.state}</span>
+          </div>
+          <span className={`college-type ${type}`}>{type}</span>
+        </div>
+        <button
+          className={`favorite-btn ${isFavorite ? 'active' : ''}`}
+          onClick={() => onToggleFavorite(id)}
+        >
+          <Star size={16} fill={isFavorite ? 'currentColor' : 'none'} />
+        </button>
+      </div>
+
+      <div className="card-stats">
+        {academics?.ranking?.usnews && (
+          <div className="stat">
+            <Award size={14} />
+            <span>#{academics.ranking.usnews} US News</span>
+          </div>
+        )}
+
+        {admissions?.acceptanceRate && (
+          <div className="stat">
+            <span className="stat-label">Acceptance Rate</span>
+            <span className="stat-value">{(admissions.acceptanceRate * 100).toFixed(1)}%</span>
+          </div>
+        )}
+
+        {student?.totalEnrollment && (
+          <div className="stat">
+            <Users size={14} />
+            <span>{student.totalEnrollment.toLocaleString()} students</span>
+          </div>
+        )}
+
+        {financial?.tuition?.outOfState && (
+          <div className="stat">
+            <DollarSign size={14} />
+            <span>{formatCurrency(financial.tuition.outOfState)}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="card-actions">
+        <button className="btn-secondary">View Details</button>
+        <button className="btn-primary">Add to Compare</button>
+      </div>
+    </div>
+  );
+};
+
+export default CollegeCard;
+
+// components/Dashboard/QuickStats.js
+import React from 'react';
+import { School, Star, BarChart, TrendingUp } from 'lucide-react';
+import './QuickStats.css';
+
+const QuickStats = ({ colleges, favorites }) => {
+  const stats = [
+    {
+      icon: School,
+      label: 'Total Colleges',
+      value: colleges.length,
+      color: 'blue'
+    },
+    {
+      icon: Star,
+      label: 'Favorites',
+      value: favorites.length,
+      color: 'yellow'
+    },
+    {
+      icon: BarChart,
+      label: 'Public',
+      value: colleges.filter(c => c.type === 'public').length,
+      color: 'green'
+    },
+    {
+      icon: TrendingUp,
+      label: 'Private',
+      value: colleges.filter(c => c.type === 'private').length,
+      color: 'purple'
+    }
+  ];
+
+  return (
+    <div className="quick-stats">
+      {stats.map(({ icon: Icon, label, value, color }) => (
+        <div key={label} className={`stat-card ${color}`}>
+          <div className="stat-icon">
+            <Icon size={20} />
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{value}</div>
+            <div className="stat-label">{label}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default QuickStats;
+
+// components/Search/Search.js
+import React, { useState } from 'react';
+import SearchResults from './SearchResults';
+import Filters from './Filters';
+import { Search as SearchIcon, Plus, Globe } from 'lucide-react';
+import { collegeAPI } from '../../services/api';
+import './Search.css';
+
+const Search = ({ onAddCollege, existingColleges }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    type: 'all',
+    state: 'all',
+    minAcceptanceRate: 0,
+    maxAcceptanceRate: 100,
+    maxTuition: 100000
+  });
+  const [activeTab, setActiveTab] = useState('search');
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchTerm.trim()) return;
+
+    setLoading(true);
+    try {
+      const results = await collegeAPI.searchColleges(searchTerm, filters);
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Search failed:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddCollege = (college) => {
+    const exists = existingColleges.find(c => c.name === college.name);
+    if (exists) {
+      alert('This college is already in your list!');
+      return;
+    }
+    onAddCollege(college);
+  };
+
+  const scrapeCurrentPage = async () => {
+    try {
+      // Send message to content script to extract college data
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageData' });
+      
+      if (response?.data && response.data.name) {
+        handleAddCollege(response.data);
+      } else {
+        alert('No college data found on current page');
+      }
+    } catch (error) {
+      console.error('Failed to scrape page:', error);
+      alert('Failed to extract college data from current page');
+    }
+  };
+
+  return (
+    <div className="search-page">
+      <div className="search-header">
+        <h2>Find Colleges</h2>
+        <div className="search-tabs">
+          <button
+            className={`tab ${activeTab === 'search' ? 'active' : ''}`}
+            onClick={() => setActiveTab('search')}
+          >
+            <SearchIcon size={16} />
+            Search Database
+          </button>
+          <button
+            className={`tab ${activeTab === 'scrape' ? 'active' : ''}`}
+            onClick={() => setActiveTab('scrape')}
+          >
+            <Globe size={16} />
+            Extract from Page
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'search' ? (
+        <div className="search-content">
+          <form onSubmit={handleSearch} className="search-form">
+            <div className="search-input-group">
+              <SearchIcon size={20} />
+              <input
+                type="text"
+                placeholder="Search for colleges by name, location, or program..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <button type="submit" disabled={loading}>
+                {loading ? 'Searching...' : 'Search'}
+              </button>
+            </div>
+          </form>
+
+          <Filters filters={filters} onFiltersChange={setFilters} />
+
+          <SearchResults
+            results={searchResults}
+            loading={loading}
+            onAddCollege={handleAddCollege}
+            existingColleges={existingColleges}
+          />
+        </div>
+      ) : (
+        <div className="scrape-content">
+          <div className="scrape-instructions">
+            <h3>Extract College Data from Current Page</h3>
+            <p>
+              Navigate to a college's page on sites like US News, Niche, or College Board,
+              then click the button below to automatically extract the college information.
+            </p>
+            <button className="btn-primary scrape-btn" onClick={scrapeCurrentPage}>
+              <Plus size={16} />
+              Extract College Data
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Search;
+
+// components/Search/SearchResults.js
+import React from 'react';
+import { Plus, ExternalLink, MapPin, Users, DollarSign } from 'lucide-react';
+import './SearchResults.css';
+
+const SearchResults = ({ results, loading, onAddCollege, existingColleges }) => {
+  const isCollegeAdded = (collegeName) => {
+    return existingColleges.some(c => c.name === collegeName);
+  };
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  if (loading) {
+    return (
+      <div className="search-results loading">
+        <div className="loading-spinner">Searching...</div>
+      </div>
+    );
+  }
+
+  if (results.length === 0) {
+    return (
+      <div className="search-results empty">
+        <p>No results found. Try different search terms or filters.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="search-results">
+      <div className="results-header">
+        <h3>Found {results.length} colleges</h3>
+      </div>
+      <div className="results-list">
+        {results.map((college, index) => (
+          <div key={index} className="result-card">
+            <div className="result-header">
+              <div className="college-info">
+                <h4>{college.name}</h4>
+                <div className="location">
+                  <MapPin size={14} />
+                  <span>{college.location?.city}, {college.location?.state}</span>
+                </div>
+                <span className={`college-type ${college.type}`}>
+                  {college.type}
+                </span>
+              </div>
+              <div className="result-actions">
+                {college.website && (
+                  <a
+                    href={college.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-icon"
+                    title="Visit website"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
+                )}
+                <button
+                  className={`btn-primary ${isCollegeAdded(college.name) ? 'disabled' : ''}`}
+                  onClick={() => onAddCollege(college)}
+                  disabled={isCollegeAdded(college.name)}
+                >
+                  <Plus size={16} />
+                  {isCollegeAdded(college.name) ? 'Added' : 'Add'}
+                </button>
+              </div>
+            </div>
+
+            <div className="result-stats">
+              {college.academics?.ranking?.usnews && (
+                <div className="stat">
+                  <span className="stat-label">US News Ranking</span>
+                  <span className="stat-value">#{college.academics.ranking.usnews}</span>
+                </div>
+              )}
+
+              {college.admissions?.acceptanceRate && (
+                <div className="stat">
+                  <span className="stat-label">Acceptance Rate</span>
+                  <span className="stat-value">
+                    {(college.admissions.acceptanceRate * 100).toFixed(1)}%
+                  </span>
+                </div>
+              )}
+
+              {college.student?.totalEnrollment && (
+                <div className="stat">
+                  <Users size={14} />
+                  <span>{college.student.totalEnrollment.toLocaleString()} students</span>
+                </div>
+              )}
+
+              {college.financial?.tuition?.outOfState && (
+                <div className="stat">
+                  <DollarSign size={14} />
+                  <span>{formatCurrency(college.financial.tuition.outOfState)}</span>
+                </div>
+              )}
+            </div>
+
+            {college.academics?.programs && (
+              <div className="result-programs">
+                <span className="programs-label">Popular Programs:</span>
+                <div className="programs-list">
+                  {college.academics.programs.slice(0, 3).map((program, i) => (
+                    <span key={i} className="program-tag">{program}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default SearchResults;
+
+// services/storage.js
+export const storageService = {
+  async getAllData() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(null, (data) => {
+        resolve(data);
+      });
+    });
+  },
+
+  async saveColleges(colleges) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ colleges }, () => resolve());
+    });
+  },
+
+  async saveFavorites(favorites) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ favorites }, () => resolve());
+    });
+  },
+
+  async saveComparisons(comparisons) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ comparisons }, () => resolve());
+    });
+  },
+
+  async saveSettings(settings) {
+    return new Promise((resolve) => {
+      chrome.storage.local.set({ settings }, () => resolve());
+    });
+  }
+};
+
+// services/api.js
+export const collegeAPI = {
+  async searchColleges(searchTerm, filters = {}) {
+    // This would integrate with real APIs like College Scorecard
+    // For now, return mock data
+    const mockResults = [
+      {
+        name: "Harvard University",
+        location: { city: "Cambridge", state: "MA" },
+        type: "private",
+        academics: {
+          ranking: { usnews: 2 },
+          programs: ["Business", "Law", "Medicine"]
+        },
+        admissions: { acceptanceRate: 0.045 },
+        financial: { tuition: { outOfState: 54269 } },
+        student: { totalEnrollment: 23731 },
+        website: "https://harvard.edu"
+      },
+      {
+        name: "Stanford University",
+        location: { city: "Stanford", state: "CA" },
+        type: "private",
+        academics: {
+          ranking: { usnews: 6 },
+          programs: ["Engineering", "Computer Science", "Business"]
+        },
+        admissions: { acceptanceRate: 0.042 },
+        financial: { tuition: { outOfState: 56169 } },
+        student: { totalEnrollment: 17249 },
+        website: "https://stanford.edu"
+      }
+    ];
+
+    // Filter results based on search term
+    return mockResults.filter(college =>
+      college.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      college.location.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      college.location.state.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  },
+
+  async getCollegeDetails(collegeId) {
+    // Fetch detailed information about a specific college
+    return {};
+  },
+
+  async getRankings() {
+    // Fetch current college rankings from various sources
+    return {};
+  }
+};
