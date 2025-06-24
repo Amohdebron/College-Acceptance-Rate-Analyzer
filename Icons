@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="downloads"></div>
+    
+    <script>
+        const sizes = [16, 24, 32, 48, 64, 96, 128, 256];
+        const downloadsDiv = document.getElementById('downloads');
+        
+        sizes.forEach(size => {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Create a simple gradient icon
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#4CAF50');
+            gradient.addColorStop(1, '#2196F3');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Add text
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${Math.floor(size * 0.3)}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('CA', size/2, size/2);
+            
+            // Create download link
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `icon${size}.png`;
+                link.textContent = `Download ${size}x${size} icon`;
+                link.style.display = 'block';
+                link.style.margin = '5px 0';
+                downloadsDiv.appendChild(link);
+            });
+        });
+    </script>
+</body>
+</html>
