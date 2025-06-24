@@ -4,7 +4,7 @@
   "short_name": "College Analyzer",
   "version": "1.2.0",
   "version_name": "1.2.0 Beta",
-  "description": "Comprehensive college research tool with smart analysis, financial aid calculations, application tracking, and real-time data from multiple sources including College Scorecard, US News, and Niche.",
+  "description": "Comprehensive college research tool with smart analysis, financial aid calculations, application tracking, and real-time data from multiple sources including College Scorecard, US News, Niche, and more.",
   "author": "Hebron Development Team",
   "homepage_url": "https://github.com/hebron/college-analyzer",
   
@@ -168,12 +168,10 @@
   },
   
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://api.collegescorecard.ed.gov https://www.usnews.com https://www.niche.com https://bigfuture.collegeboard.org https://nces.ed.gov https://studentaid.gov; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://api.collegescorecard.ed.gov https://www.usnews.com https://www.niche.com https://bigfuture.collegeboard.org https://www.princetonreview.com https://www.collegedata.com https://www.cappex.com https://www.petersons.com https://nces.ed.gov https://studentaid.gov;"
   },
   
   "minimum_chrome_version": "114",
-  
   "incognito": "split",
-  
   "offline_enabled": true
 }
