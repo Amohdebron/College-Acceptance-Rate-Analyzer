@@ -18,8 +18,7 @@
     "alarms",
     "notifications",
     "offscreen",
-    "declarativeNetRequest",
-    "sidePanel"
+    "declarativeNetRequest"
   ],
   
   "optional_permissions": [
@@ -104,7 +103,6 @@
     {
       "resources": [
         "popup.html",
-        "sidepanel.html",
         "analyzer.html",
         "compare.html",
         "options.html",
@@ -132,7 +130,8 @@
     "48": "icons/icon48.png",
     "64": "icons/icon64.png",
     "96": "icons/icon96.png",
-    "128": "icons/icon128.png"
+    "128": "icons/icon128.png",
+    "256": "icons/icon256.png"
   },
   
   "commands": {
@@ -156,13 +155,6 @@
         "mac": "Command+Shift+D"
       },
       "description": "Open college dashboard"
-    },
-    "toggle-sidepanel": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
-      },
-      "description": "Toggle side panel"
     }
   },
   
@@ -177,10 +169,6 @@
   
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://api.collegescorecard.ed.gov https://www.usnews.com https://www.niche.com https://bigfuture.collegeboard.org https://nces.ed.gov https://studentaid.gov; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;"
-  },
-  
-  "side_panel": {
-    "default_path": "sidepanel.html"
   },
   
   "minimum_chrome_version": "114",
